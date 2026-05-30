@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>海边的卡夫卡 · 交互叙事</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --text: #c8c0b8;
+    --text-dim: #7a7268;
+    --accent: #b8860b;
+    --accent-glow: #d4a017;
+    --crow: #cc3333;
+    --dream: #4a6fa5;
+    --cat: #6b8e5a;
+    --danger: #8b2500;
+    --transition: 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  body {
+    font-family: 'Noto Serif SC', 'SimSun', 'STSong', serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    line-height: 1.9;
+  }
+
+  /* Ambient background particles */
+  .ambient {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    animation: floatUp linear infinite;
+    opacity: 0;
+  }
+  @keyframes floatUp {
+    0% { transform: translateY(100vh) scale(0); opacity: 0; }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.1; }
+    100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+  }
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(184,134,11,0.05); }
+    50% { box-shadow: 0 0 40px rgba(184,134,11,0.12); }
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes crowFlicker {
+    0%, 100% { color: var(--crow); }
+    50% { color: #ff4444; text-shadow: 0 0 8px rgba(204,51,51,0.3); }
+  }
+  @keyframes textReveal {
+    from { opacity: 0; filter: blur(4px); }
+    to { opacity: 1; filter: blur(0); }
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 720px;
+    min-height: 100vh;
+    padding: 40px 28px;
+    display: flex;
+    flex-direction: column;
+    animation: pulseGlow 4s ease-in-out infinite;
+  }
+
+  /* Title bar */
+  .title-bar {
+    text-align: center;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(184,134,11,0.18);
+    margin-bottom: 32px;
+  }
+  .title-bar h1 {
+    font-size: 1.6rem;
+    font-weight: 300;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(184,134,11,0.25);
+  }
+  .title-bar .subtitle {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    letter-spacing: 0.3em;
+    margin-top: 6px;
+  }
+
+  /* Chapter indicator */
+  .chapter-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    border: 1px solid rgba(122,114,104,0.3);
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+  }
+
+  /* Narrative text */
+  .narrative {
+    flex: 1;
+    font-size: 1.05rem;
+    line-height: 2.1;
+    letter-spacing: 0.03em;
+    color: var(--text);
+    animation: textReveal 0.8s ease-out;
+    transition: opacity var(--transition);
+  }
+  .narrative p { margin-bottom: 1.2em; text-indent: 2em; }
+  .narrative p.no-indent { text-indent: 0; }
+
+  /* Crow's voice — red, interruptive */
+  .crow-voice {
+    color: var(--crow);
+    font-weight: 600;
+    font-style: italic;
+    border-left: 2px solid rgba(204,51,51,0.4);
+    padding-left: 16px;
+    margin: 20px 0;
+    animation: crowFlicker 3s ease-in-out infinite;
+    text-indent: 0 !important;
+  }
+  .crow-voice::before { content: "「"; }
+  .crow-voice::after { content: "」"; }
+
+  /* Dream sequence — blue-tinted */
+  .dream-text {
+    color: var(--dream);
+    font-style: italic;
+    opacity: 0.85;
+    border-left: 2px solid rgba(74,111,165,0.35);
+    padding-left: 16px;
+    margin: 20px 0;
+  }
+
+  /* Cat dialogue — green-tinted */
+  .cat-speak {
+    color: var(--cat);
+    font-style: italic;
+    padding-left: 16px;
+    border-left: 2px solid rgba(107,142,90,0.35);
+    margin: 16px 0;
+  }
+
+  /* Choices */
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 36px;
+    animation: fadeInUp 0.7s ease-out;
+  }
+  .choice-btn {
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid rgba(184,134,11,0.25);
+    padding: 14px 22px;
+    cursor: pointer;
+    transition: all 0.35s ease;
+    text-align: left;
+    letter-spacing: 0.04em;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+  .choice-btn::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+    transform: scaleY(0);
+    transition: transform 0.35s ease;
+  }
+  .choice-btn:hover {
+    background: #1a1a1a;
+    border-color: rgba(184,134,11,0.55);
+    color: #e8dcc8;
+    padding-left: 28px;
+  }
+  .choice-btn:hover::before { transform: scaleY(1); }
+  .choice-btn .choice-key {
+    display: inline-block;
+    color: var(--accent);
+    font-size: 0.75rem;
+    margin-right: 8px;
+    opacity: 0.7;
+  }
+
+  /* Status bar */
+  .status-bar {
+    margin-top: 28px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(122,114,104,0.15);
+    display: flex;
+    gap: 20px;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+  .status-item { display: flex; align-items: center; gap: 6px; }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .status-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+  .status-dot.dream { background: var(--dream); }
+  .status-dot.crow { background: var(--crow); }
+
+  /* Ending screen */
+  .ending-screen {
+    text-align: center;
+    padding: 60px 20px;
+    animation: fadeInUp 1.2s ease-out;
+  }
+  .ending-screen h2 {
+    font-size: 1.5rem;
+    font-weight: 300;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    margin-bottom: 24px;
+  }
+  .ending-screen .ending-text {
+    font-size: 1rem;
+    line-height: 2.2;
+    color: var(--text);
+    margin-bottom: 32px;
+  }
+  .ending-screen .epitaph {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    font-style: italic;
+    letter-spacing: 0.15em;
+  }
+
+  /* Restart button */
+  .restart-btn {
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: var(--accent);
+    background: transparent;
+    border: 1px solid rgba(184,134,11,0.35);
+    padding: 10px 28px;
+    cursor: pointer;
+    letter-spacing: 0.2em;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+  }
+  .restart-btn:hover {
+    background: rgba(184,134,11,0.08);
+    border-color: rgba(184,134,11,0.65);
+  }
+
+  /* Footer */
+  .footer-note {
+    text-align: center;
+    font-size: 0.68rem;
+    color: rgba(122,114,104,0.4);
+    letter-spacing: 0.16em;
+    padding-top: 28px;
+    margin-top: 32px;
+    border-top: 1px solid rgba(122,114,104,0.08);
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .container { padding: 24px 16px; }
+    .narrative { font-size: 0.95rem; }
+    .title-bar h1 { font-size: 1.3rem; }
+  }
+
+  /* Typewriter cursor for last paragraph sometimes */
+  .cursor-blink::after {
+    content: '▎';
+    animation: blink 1s step-end infinite;
+    color: var(--accent);
+    opacity: 0.7;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: rgba(184,134,11,0.2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Ambient particles -->
+<div class="ambient" id="ambient"></div>
+
+<!-- Main container -->
+<div class="container" id="app">
+  <div class="title-bar">
+    <h1>海边的卡夫卡</h1>
+    <div class="subtitle">カフカ※交互叙事</div>
+  </div>
+  <div id="chapterTag"></div>
+  <div class="narrative" id="narrative"></div>
+  <div class="choices" id="choices"></div>
+  <div class="status-bar" id="statusBar"></div>
+  <div class="footer-note">泠詩恋月与TA的Claude制作</div>
+</div>
+
+<script>
+// ──────────────────────────────────
+// Kafka on the Shore — Interactive Fiction Engine
+// ──────────────────────────────────
+
+const app = document.getElementById('app');
+const narrativeEl = document.getElementById('narrative');
+const choicesEl = document.getElementById('choices');
+const chapterEl = document.getElementById('chapterTag');
+const statusEl = document.getElementById('statusBar');
+
+// Game state
+const state = {
+  currentNode: 'start',
+  history: [],
+  flags: {
+    metSakura: false,
+    metOshima: false,
+    metSaeki: false,
+    enteredLibrary: false,
+    hadDream: false,
+    shrineIncident: false,
+    fatherDead: false,
+    enteredForest: false,
+    metSoldiers: false,
+    ghostSaeki: false,
+    shadowMerged: false,
+    talkedToCat: false,
+    heardMusic: false,
+    choseViolence: false,
+    chosePeace: false,
+  },
+  inventory: [],
+  dreamCount: 0,
+  shadowDepth: 0, // metaphorical "depth" tracker
+};
+
+// ── Narrative Database ──
+const nodes = {
+
+  // ═══════════════ PROLOGUE ═══════════════
+  'start': {
+    chapter: '序 · 叫乌鸦的少年',
+    status: 'crow',
+    text: `<p>那是你十五岁生日的前夜。行李早已收拾好——几件替换的衣服、牙刷、存了两年的一笔钱，还有一本翻旧了的《海边的卡夫卡》唱片封套——不是书，是一张你在旧货市场偶然发现的、早已绝版的唱片封套，上面印着一位年轻女子的侧影。</p>
+    <p>窗外是东京深夜特有的沉默，那种连霓虹灯都疲惫了的、沉甸甸的沉默。你坐在自己房间的地板上，背靠着床沿，最后一次以「家」的名义审视这个空间。</p>
+    <p class="crow-voice">你准备好了吗？从这里离开，就再也回不去了。你不再是「田村卡夫卡」，也不再是任何人的儿子。你将只是你自己——世界上最顽强的十五岁少年。</p>
+    <p>那个被称作「叫乌鸦的少年」的声音在你的意识深处响起。他是你，又不是你。他是你体内那只随时准备振翅的乌鸦。</p>
+    <p>父亲的话像一枚冰冷的钉子，楔在你的记忆里——<em>「你将亲手杀死你的父亲，并与你的母亲和姐姐交合。」</em></p>
+    <p>你必须走。不是逃离预言，而是……走向它。</p>`,
+    choices: [
+      { text: '现在就出发，搭夜行巴士去四国', next: 'night_bus', key: 'A' },
+      { text: '再等一等。等到黎明。', next: 'wait_dawn', key: 'B' },
+      { text: '去父亲的工作室，最后看他一眼', next: 'see_father', key: 'C' },
+    ]
+  },
+
+  'wait_dawn': {
+    chapter: '序 · 等待',
+    text: `<p>你决定等到天亮。夜色最浓的时刻，你坐在窗边，看着东京的天际线从墨黑一点点泛出鱼肚白。清晨的电车声远远传来，像某种温柔的警告。</p>
+    <p>你推开家门时，走廊里还暗着。父亲的房间门紧闭，里面传出轻微的鼾声。你没有回头。</p>
+    <p class="crow-voice">黎明出发的人，影子会比别人长一些。但那又如何？影子长，说明你已经站在了光里。</p>`,
+    choices: [
+      { text: '走向新宿车站，买一张去高松的夜行巴士票', next: 'night_bus', key: 'A' },
+    ]
+  },
+
+  'see_father': {
+    chapter: '序 · 雕塑家的工作室',
+    text: `<p>你悄悄推开父亲工作室的门。石膏粉末在月光下像一片微型的雪原。那些未完成的雕塑立在暗处，扭曲的形体仿佛某种被诅咒的生物。</p>
+    <p>墙上贴着一张便条，是父亲的字迹：<em>「形式即是囚笼。打碎形式，才能看见本质。」</em></p>
+    <p>你不知道他是何时写下这句话的。也许是在雕刻的间隙，也许是在喝威士忌的深夜。无论如何，这都不再重要了。</p>
+    <p class="crow-voice">别碰任何东西。他的世界有他的逻辑，但那不是你的。离开。马上。</p>`,
+    choices: [
+      { text: '轻轻关上门，背上背包，头也不回地离开', next: 'night_bus', key: 'A' },
+    ]
+  },
+
+  // ═══════════════ BUS JOURNEY ═══════════════
+  'night_bus': {
+    chapter: '第一章 · 夜行巴士',
+    status: 'neutral',
+    text: `<p>夜行巴士在首都高速上平稳地滑行。车厢里只有寥寥几个乘客，大多蜷在座椅上睡着了。你选了最后一排靠窗的位置，额头贴着冰凉的玻璃，看着东京的灯火向后退去，越来越稀薄，最终被关东平原无边的黑暗吞没。</p>
+    <p>你在想预言的事。俄狄浦斯在不知情中完成了神谕——弑父、娶母。但你是知情的。知情者能否避开命运？还是说，知情本身就是命运的一部分？</p>
+    <p>巴士在服务区短暂停靠时，一个比你大几岁的女孩上了车。她染着茶色的短发，耳朵上挂着一排银环，径直坐到了你旁边。</p>
+    <p>「嗨，一个人？」她嚼着口香糖，语气像是在和一只流浪猫打招呼。</p>`,
+    choices: [
+      { text: '「嗯。去高松。」——简短回应，但保持礼貌', next: 'meet_sakura', key: 'A' },
+      { text: '「……」——假装睡着，不去回应', next: 'ignore_sakura', key: 'B' },
+      { text: '「你也是一个人吗？」——反问她', next: 'ask_sakura', key: 'C' },
+    ]
+  },
+
+  'meet_sakura': {
+    chapter: '第一章 · 樱花',
+    status: 'neutral',
+    text: `<p>「高松？四国的高松？」她的眼睛亮了一下，「我老家就在那边。你去做什么？旅行？离家出走？」</p>
+    <p>你没有回答最后一个问题。她似乎也不需要答案。「我叫樱花。」她说，「不是真名，但你就这么叫我好了。」</p>
+    <p>樱花从包里掏出一罐温热的咖啡递给你。「离家出走的人需要咖啡因。别问我是怎么知道的。」</p>
+    <p>你接过咖啡。罐身的温度透过掌心传来，那种微不足道的温暖竟让你有些恍惚。</p>
+    <p class="crow-voice">小心。这个女孩身上的气息……和你记忆深处某个模糊的影子重叠了。但你不能告诉她。</p>`,
+    choices: [
+      { text: '「谢谢你，樱花。」——接过咖啡，和她聊到巴士到站', next: 'arrive_takamatsu_sakura', key: 'A' },
+      { text: '「我不需要。」——拒绝好意，保持距离', next: 'arrive_takamatsu_alone', key: 'B' },
+    ]
+  },
+
+  'ignore_sakura': {
+    chapter: '第一章 · 沉默',
+    text: `<p>你闭着眼睛，呼吸均匀。她等了几秒，自言自语般嘟囔了一句「现在的孩子真是……」便从包里拿出耳机戴上。</p>
+    <p>从她耳机里漏出的音乐隐约是某首爵士乐——迈尔斯·戴维斯的小号，像一条半透明的河流在车厢里蜿蜒。你在心里跟着旋律走了一段，然后真的睡着了。</p>
+    <p>梦里有一只黑猫蹲在路边，用翡翠色的眼睛看着你。它开口说话了，但当你醒来时，那句话已经沉入了记忆的深处。</p>`,
+    choices: [
+      { text: '巴士到达高松。你揉了揉眼睛，走下车', next: 'arrive_takamatsu_alone', key: 'A' },
+    ]
+  },
+
+  'ask_sakura': {
+    chapter: '第一章 · 问询',
+    text: `<p>她挑了挑眉，似乎没想到你会反问。「我？我回老家看看家人。不过也可能只是借口——我就是想坐一趟长途巴士，什么也不想，就这么看着窗外。」</p>
+    <p>「你知道吗？」她侧过头看着你，「你看起来像是在逃命。但你的眼睛又很平静。很奇怪。」</p>
+    <p>「也许两者都是真的。」你说。</p>
+    <p>她笑了。「有意思。我叫樱花。到了高松如果没地方去，可以找我。」她在一张便利店收据背面写了一个电话号码塞给你。</p>`,
+    choices: [
+      { text: '收下号码。和她有一搭没一搭地聊到天亮', next: 'arrive_takamatsu_sakura', key: 'A' },
+    ]
+  },
+
+  // ═══════════════ ARRIVAL ═══════════════
+  'arrive_takamatsu_sakura': {
+    chapter: '第二章 · 高松',
+    status: 'neutral',
+    text: `<p>高松的清晨有一种濑户内海特有的湿润和清澈。樱花在车站出口向你挥了挥手。「保重啊，离家出走的少年。别死。」她笑着说，但那笑容底下藏着某种认真。</p>
+    <p>然后她转身消失在晨光里，茶色短发在风中晃了晃，像一只掠过的鸟。</p>`,
+    choices: [
+      { text: '去找那家传说中的「甲村纪念图书馆」', next: 'find_library', key: 'A' },
+      { text: '先在街上随便走走，感受一下这座陌生的城市', next: 'wander_city', key: 'B' },
+    ],
+    onEnter(state) {
+      state.flags.metSakura = true;
+      state.inventory.push('樱花的电话号码');
+    }
+  },
+
+  'arrive_takamatsu_alone': {
+    chapter: '第二章 · 高松',
+    status: 'neutral',
+    text: `<p>高松车站的清晨安静得近乎透明。你背着包站在站前广场上，看着远处濑户内海灰蓝色的水面，心想：就是这里了。</p>
+    <p>没有人认识你。没有人知道你的名字。没有人知道那个预言。在这座城市里，你只是一张白纸。</p>`,
+    choices: [
+      { text: '去找那家传说中的「甲村纪念图书馆」', next: 'find_library', key: 'A' },
+      { text: '先在街上随便走走', next: 'wander_city', key: 'B' },
+    ]
+  },
+
+  'wander_city': {
+    chapter: '第二章 · 闲逛',
+    text: `<p>你在高松的街道上漫无目的地走着。经过了一家乌冬面馆、一座小小的神社、一家摆满旧书的二手店。一只三花猫蹲在神社的鸟居下面，眯着眼睛晒太阳。</p>
+    <p>你蹲下来和猫对视了一会儿。猫打了个哈欠，露出粉红色的上颚。</p>
+    <p class="cat-speak">你身上有远方的味道。乌鸦的味道。</p>
+    <p>你眨了眨眼。猫刚才……说话了？不，那只是你自己的想象。猫只是打了个哈欠而已。</p>`,
+    choices: [
+      { text: '继续前往甲村纪念图书馆', next: 'find_library', key: 'A' },
+    ],
+    onEnter(state) { state.flags.talkedToCat = true; }
+  },
+
+  // ═══════════════ LIBRARY ═══════════════
+  'find_library': {
+    chapter: '第三章 · 甲村纪念图书馆',
+    status: 'neutral',
+    text: `<p>甲村纪念图书馆藏在一条安静的住宅区街道尽头。那是一栋老式的西洋建筑，外墙爬满常春藤，铁栅栏门半开半合，仿佛在说：来不来是你的自由。</p>
+    <p>你推开厚重的橡木门。里面凉爽而幽暗，空气中弥漫着旧书、木质地板蜡和某种不知名花香混合的气味。大厅中央的柜台上方挂着一幅油画——一个年轻女子的肖像，她的眼神既温柔又遥远，像凝视着某个不在场的人。</p>
+    <p>柜台后面传来一个清朗的声音：「欢迎光临。你是来看书的，还是来找人的？」</p>
+    <p>说话的人是一个年轻的男性——或者说，看起来像男性的、穿着整洁白衬衫的年轻人。他的五官精致得过分，声音介于中性和男性之间。</p>`,
+    choices: [
+      { text: '「我是来看书的。」——选择最安全的回答', next: 'meet_oshima', key: 'A' },
+      { text: '「我……需要一个可以待的地方。」——说出部分真相', next: 'meet_oshima_honest', key: 'B' },
+      { text: '「那幅画里的是谁？」——被肖像吸引', next: 'ask_painting', key: 'C' },
+    ]
+  },
+
+  'meet_oshima': {
+    chapter: '第三章 · 大岛',
+    status: 'neutral',
+    text: `<p>「看书。」年轻人微笑着说，「这个回答很好。喜欢书的人不会太坏——至少我是这么认为的。」</p>
+    <p>他自我介绍说他叫大岛，是这里的管理员。他走路时微微跛行，但你注意到他刻意不让这个细节影响自己优雅的姿态。</p>
+    <p>「这里的藏书以文学和哲学为主。二楼有沙发，可以在那里阅读。如果你需要推荐，随时找我。」</p>`,
+    choices: [
+      { text: '在图书馆里待一整天，沉浸在书中', next: 'library_day', key: 'A' },
+      { text: '询问大岛是否认识馆长', next: 'ask_director', key: 'B' },
+    ],
+    onEnter(state) { state.flags.metOshima = true; }
+  },
+
+  'meet_oshima_honest': {
+    chapter: '第三章 · 大岛',
+    status: 'neutral',
+    text: `<p>大岛看了你几秒。他的眼睛很亮，有一种洞察力在里面流动。</p>
+    <p>「可以待的地方。」他重复了一遍，不是疑问，而是咀嚼。「你有十五岁吗？」</p>
+    <p>「十五岁。」你说。</p>
+    <p>「离家出走？」</p>
+    <p>你沉默。大岛叹了口气，从柜台后面拿出一串钥匙。「二楼有一间客房。只能住几天。不过——」他微微倾身，「你得答应我，好好读几本书。」</p>`,
+    choices: [
+      { text: '「谢谢你。我会的。」——接受他的好意', next: 'library_day', key: 'A' },
+    ],
+    onEnter(state) { state.flags.metOshima = true; }
+  },
+
+  'ask_painting': {
+    chapter: '第三章 · 画中人',
+    text: `<p>「啊，那幅。」大岛顺着你的目光看向那幅肖像，「那是佐伯女士——这家图书馆的馆长。不过那是她十五岁时的样子。现在她已经五十多岁了。」</p>
+    <p>你凝视着画中少女的脸。不可思议地，那张脸让你想起了一个你并不认识的人——或者说，一个你不能认识的人。</p>
+    <p>「这幅画有一种魔力。」大岛说，「每个第一次看到它的人都会问同样的问题。」</p>
+    <p class="crow-voice">别看了。那张脸会让你做梦。做你不该做的梦。</p>`,
+    choices: [
+      { text: '移开目光。到书架间去寻找一本书', next: 'meet_oshima', key: 'A' },
+    ]
+  },
+
+  'library_day': {
+    chapter: '第四章 · 阅览室',
+    status: 'neutral',
+    text: `<p>你在图书馆里度过了整个白天。读了夏目漱石、读了《一千零一夜》、读了柏拉图的《会饮篇》。每一本书都像一扇通往别处的门。</p>
+    <p>傍晚时分，一个女人的身影出现在楼梯转角。她穿着深蓝色的套装，头发整齐地束在脑后，五十多岁却依然保有某种让人移不开目光的气质。你立刻认出了她——画中少女的老年版本。</p>
+    <p>佐伯女士缓缓走下楼梯。她的脚步声很轻，像一只在夜雾中行走的猫。经过你身边时，她停了一下。仅仅一秒。</p>
+    <p>「新来的读者？」她问大岛，但目光始终在你身上。</p>`,
+    choices: [
+      { text: '「我叫田村卡夫卡。」——直视她的眼睛', next: 'meet_saeki_direct', key: 'A' },
+      { text: '低下头，继续看书。假装没有注意到她', next: 'meet_saeki_shy', key: 'B' },
+    ]
+  },
+
+  'ask_director': {
+    chapter: '第四章 · 馆长',
+    text: `<p>「馆长很少来。」大岛说，「她叫佐伯。以前是歌手。年轻时写过一首歌，就叫《海边的卡夫卡》——很巧吧？」</p>
+    <p>你听到这个巧合时，后颈的汗毛竖了起来。不是恐惧，而是某种形而上的震颤——这个世界似乎在用它独有的方式暗示着什么。</p>
+    <p>就在这时，楼梯上传来轻轻的脚步声。一个气质优雅的中年女人走了下来。佐伯。</p>`,
+    choices: [
+      { text: '「我叫田村卡夫卡。」——直接向她自我介绍', next: 'meet_saeki_direct', key: 'A' },
+      { text: '沉默地看着她从身边走过', next: 'meet_saeki_shy', key: 'B' },
+    ]
+  },
+
+  'meet_saeki_direct': {
+    chapter: '第四章 · 佐伯',
+    status: 'neutral',
+    text: `<p>佐伯的目光在你脸上停留了很久。那种凝视不像是审视，更像是——辨认。仿佛她在透过你的脸看另一个人的面容，一个早已逝去的面容。</p>
+    <p>「卡夫卡。」她轻声重复了这个名字，像是在品尝一颗略带苦涩的糖。「这不是你的真名吧。」</p>
+    <p>「是我自己选的名字。」</p>
+    <p>她微微点头。「自己选的名字，比父母给的更有分量。」然后她转向大岛，「让这孩子住在二楼的房间。明天开始帮我整理书架。」</p>
+    <p>大岛的表情闪过一丝意外，但他没有说什么。</p>`,
+    choices: [
+      { text: '接受安排。在图书馆住下来', next: 'stay_library', key: 'A' },
+    ],
+    onEnter(state) { state.flags.metSaeki = true; state.flags.enteredLibrary = true; }
+  },
+
+  'meet_saeki_shy': {
+    chapter: '第四章 · 路过',
+    text: `<p>你低着头，但依然能感觉到她的目光落在你身上。那不是寻常的好奇，而是某种……引力。像月亮对潮汐的引力。</p>
+    <p>她走过之后，空气中留下淡淡的香水味——栀子花，也许。大岛在你身后轻轻说：「她注意到你了。这很少见。」</p>`,
+    choices: [
+      { text: '「她是什么样的人？」——向大岛打听', next: 'ask_about_saeki', key: 'A' },
+      { text: '继续读书，什么也不问', next: 'stay_library', key: 'B' },
+    ]
+  },
+
+  'ask_about_saeki': {
+    chapter: '第四章 · 佐伯的故事',
+    text: `<p>「佐伯女士……」大岛靠在书架上，斟酌着词句，「她的人生在二十岁时就停止了。不是身体上的停止，是某种——更内在的。她的恋人死于一场事故。从那以后，她就活在一个只属于她自己的时间里。」</p>
+    <p>「那首歌——《海边的卡夫卡》——就是为那个人写的。」</p>
+    <p>你没有再问。有些伤口不适合在灯光下展示。</p>`,
+    choices: [
+      { text: '「我能在这里住下来吗？」——正式询问', next: 'stay_library', key: 'A' },
+    ],
+    onEnter(state) { state.flags.metSaeki = true; }
+  },
+
+  'stay_library': {
+    chapter: '第五章 · 栖身之所',
+    status: 'neutral',
+    text: `<p>你在甲村纪念图书馆住了下来。二楼的房间不大，但有一扇面向庭院的窗户。院子里种着山茶花和一棵很大的榉树，树上有乌鸦筑巢。</p>
+    <p>每天上午你帮大岛整理书架、登记新到的书。下午你一个人在阅览室读书。黄昏时分，佐伯有时会来，坐在办公室的窗前，凝视着庭院中的某一处，一动不动。</p>
+    <p>你发现自己在期待她的到来。那种期待与任何你能理解的感情都不同——它更像是一种本能的引力，像植物向光生长。</p>
+    <p>一周过去了。然后，你开始做梦。</p>`,
+    choices: [
+      { text: '进入梦境……', next: 'first_dream', key: 'A' },
+    ]
+  },
+
+  // ═══════════════ DREAM SEQUENCE ═══════════════
+  'first_dream': {
+    chapter: '第六章 · 梦（其一）',
+    status: 'dream',
+    text: `<p>梦里，你站在一个不属于任何城市的街道上。两旁的建筑像融化了一半的蜡烛，路灯发出蓝幽幽的光。空气是湿润的，带着海盐和栀子花的气味。</p>
+    <p>一个十五岁的少女赤脚站在路中央。她穿着白色的连衣裙，头发又长又黑。她的眼睛——你认出了那双眼睛，那是佐伯的眼睛，但镶嵌在一张少女的脸上。</p>
+    <p class="dream-text">「你来了。」少女说。她的声音很轻，却清晰地穿透了梦境厚重的空气。「我在这里等了很久。二十年？三十年？我不知道。时间在这里是黏稠的，像蜂蜜。」</p>
+    <p>她向你走来。每一步都在柏油路面上留下浅浅的水痕。</p>
+    <p class="dream-text">「你知道我是谁吗？」</p>`,
+    choices: [
+      { text: '「你是佐伯的——影子？」', next: 'dream_talk', key: 'A' },
+      { text: '「你是十五岁的佐伯。」', next: 'dream_talk', key: 'B' },
+      { text: '什么也不说，只是看着她', next: 'dream_silence', key: 'C' },
+    ]
+  },
+
+  'dream_talk': {
+    chapter: '第六章 · 梦（其一）',
+    status: 'dream',
+    text: `<p class="dream-text">「影子？也许吧。」少女的嘴角浮起一个若即若离的微笑。「我是她留在时间里的部分。那个二十岁时死去的恋人带走了她真正的生命，而我把那个十五岁的夏天保存了下来。像一个被封在琥珀里的标本。」</p>
+    <p>她伸出手，指尖几乎碰到你的脸颊，但停在了毫厘之间。你感觉到一种奇异的温热，像隔着玻璃感受到的阳光。</p>
+    <p class="dream-text">「你的体内也住着一个不属于你自己的影子。一只乌鸦。它是你的护身符，也是你的诅咒。」</p>
+    <p>然后梦开始变得稀薄，像被晨光驱散的雾。少女的身影渐渐透明。</p>
+    <p class="dream-text">「下次再来的时候——我会告诉你关于入口的事。」</p>`,
+    choices: [
+      { text: '醒来。窗外天已经亮了。', next: 'wake_from_dream', key: 'A' },
+    ],
+    onEnter(state) { state.flags.hadDream = true; state.dreamCount++; }
+  },
+
+  'dream_silence': {
+    chapter: '第六章 · 梦（其一）',
+    status: 'dream',
+    text: `<p class="dream-text">你沉默着。少女也没有再说话。她只是站在那里，用那双过于熟悉的眼睛看着你。然后，她开始哼一首旋律——你没有听过，但你的身体似乎认得它。每一个音符都让你的血管里涌起一阵奇异的震颤。</p>
+    <p class="dream-text">那是《海边的卡夫卡》。那首歌。</p>
+    <p>梦在她哼完最后一个音符时碎裂了。像一块玻璃在寂静中无声地炸开。</p>`,
+    choices: [
+      { text: '从梦中醒来。你发现自己泪流满面。', next: 'wake_from_dream', key: 'A' },
+    ],
+    onEnter(state) { state.flags.hadDream = true; state.flags.heardMusic = true; state.dreamCount++; }
+  },
+
+  'wake_from_dream': {
+    chapter: '第七章 · 清醒',
+    status: 'neutral',
+    text: `<p>你醒来了。晨光穿过窗帘的缝隙，在天花板上投下一道细长的金色条纹。你的身体残留着梦的触感——那种介于真实和虚幻之间的、让人不安的余韵。</p>
+    <p>楼下传来大岛煮咖啡的声音。然后是广播里播放的古典音乐——贝多芬的《大公三重奏》。大岛说过那是他最喜欢的曲子。</p>
+    <p>你下楼时，佐伯已经在办公室了。她今天穿着淡灰色的上衣，头发用一支银色的发簪挽着。看到你时，她的目光闪烁了一下，然后迅速移开了。</p>
+    <p>你忽然意识到：她知道你的梦。不是知道内容，而是知道——你梦见了她。</p>`,
+    choices: [
+      { text: '「早安，佐伯女士。」——装作一切如常', next: 'morning_routine', key: 'A' },
+      { text: '「佐伯女士……你是不是有另一个名字？」——试探', next: 'ask_saeki_name', key: 'B' },
+    ]
+  },
+
+  'ask_saeki_name': {
+    chapter: '第七章 · 名字',
+    text: `<p>佐伯的手停在了半空中。她正在整理一份文件，但此时那文件悬在空气里，像一片凝固的落叶。</p>
+    <p>「每个人都有一个不能说出口的名字。」她终于说，「那个名字不属于语言，不属于任何人。它是你和这个世界之间的第一个秘密。」</p>
+    <p>她转过头看着你。阳光从侧面照亮了她的半张脸，另一半藏在阴影里。</p>
+    <p>「你的真名是什么？不是卡夫卡。是你母亲离开前喊你的那个名字。」</p>
+    <p>你发现自己张开了嘴，但喉咙里什么也发不出来。</p>`,
+    choices: [
+      { text: '「我已经不记得了。」——这是实话', next: 'morning_routine', key: 'A' },
+    ],
+  },
+
+  'morning_routine': {
+    chapter: '第八章 · 日常',
+    text: `<p>日子像图书馆窗外的榉树叶子一样，一片片地落下，堆积成一种平静的日常。你读书、整理书架、和大岛一起喝咖啡、听贝多芬。</p>
+    <p>但你知道平静只是表面。冰层下面，暗流正在加速。</p>
+    <p>一个午后，大岛接了一个电话，表情严肃。</p>
+    <p>「有一个新闻。」他放下电话，看着你。「东京警方……他们发现了一具尸体。你父亲的尸体。他被杀了。」</p>`,
+    choices: [
+      { text: '「什么时候？」——保持冷静', next: 'father_dead', key: 'A' },
+      { text: '沉默。因为你的胸口莫名地开始疼痛。', next: 'father_dead', key: 'B' },
+    ]
+  },
+
+  'father_dead': {
+    chapter: '第九章 · 弑父',
+    status: 'danger',
+    text: `<p>你父亲的尸体是在东京世田谷区的工作室里被发现的。身中数刀。死亡时间推定为三天前。</p>
+    <p>三天前。那个晚上——你去了哪里？你努力回忆，但那段时间在记忆里是一片空白。不对，不是空白。是一片……血迹。</p>
+    <p>你低头看着自己的手。干净的。但你清楚地记得——不，不是记得——你<em>感觉</em>到某种粘稠的液体曾经存在于你的手掌之间。</p>
+    <p class="crow-voice">预言的第一部分已经应验了。弑父。无论你手上是否沾着血——在某种更深的层面上，你是共犯。也许是用你的意志，也许是用你的存在本身。</p>
+    <p>大岛看着你。「警察可能会来找你。你是失踪的未成年人，而你的父亲刚被谋杀。你需要躲起来。」</p>`,
+    choices: [
+      { text: '「我不需要躲。不是我杀的。」', next: 'deny_murder', key: 'A' },
+      { text: '「……好。听你的。」——接受大岛的安排', next: 'accept_hide', key: 'B' },
+      { text: '「我要回东京。我要亲眼看看。」', next: 'return_tokyo_choice', key: 'C' },
+    ],
+    onEnter(state) { state.flags.fatherDead = true; }
+  },
+
+  'deny_murder': {
+    chapter: '第九章 · 否认',
+    text: `<p>大岛叹了口气。「重要的不是你杀没杀。重要的是——在命运的书里，这一页已经被写好了。」</p>
+    <p>「你相信命运？」你问。</p>
+    <p>「我相信结构。」大岛说，「不是外在的力量在操控你，而是你的内在结构——你的恐惧、你的欲望、你四岁时失去母亲的那个空洞——这些构成了你的命运。自由意志不是逃离这种结构，而是看清它。」</p>`,
+    choices: [
+      { text: '「带我去那个地方。那个可以藏身的地方。」', next: 'accept_hide', key: 'A' },
+    ],
+  },
+
+  'accept_hide': {
+    chapter: '第十章 · 山林小屋',
+    status: 'neutral',
+    text: `<p>大岛开车带你去高知县的山里。车子在密林中的土路上颠簸了几个小时，最终停在一栋小木屋前。</p>
+    <p>「这是我哥哥的屋子。他几乎不来。你在这里待一阵子，等事情平息。」大岛把钥匙交给你，「冰箱里有食物。没有电视，没有网络。只有书，和森林。」</p>
+    <p>森林——那是一片真正的深山老林。树木高大得遮天蔽日，空气里满是苔藓和腐叶的气味。某种比文明更古老的东西在这里呼吸着。</p>
+    <p>「别往森林深处走太远。」大岛临走前说，「这里面……有一些奇怪的东西。你可能听说过——当年有士兵在这里失踪。」</p>`,
+    choices: [
+      { text: '独自在小屋里度过第一夜', next: 'cabin_night', key: 'A' },
+      { text: '趁天还没黑，去森林边缘走走', next: 'forest_edge', key: 'B' },
+    ]
+  },
+
+  'return_tokyo_choice': {
+    chapter: '第九章 · 归途',
+    text: `<p>大岛沉默了很长时间。</p>
+    <p>「你回去了，然后呢？一个十五岁的失踪少年站在父亲的尸体旁边。警察会问很多问题。那些问题没有答案，或者说——答案存在于一个他们不可能接受的世界里。」</p>
+    <p>「你想好了吗？」</p>`,
+    choices: [
+      { text: '……改变主意。跟大岛去山里的木屋。', next: 'accept_hide', key: 'A' },
+    ]
+  },
+
+  'cabin_night': {
+    chapter: '第十章 · 木屋之夜',
+    text: `<p>山里的夜晚是真正的黑暗——不是城市里那种被路灯稀释的半暗，而是完全的、沉甸甸的、仿佛实体化的黑暗。你点了一盏油灯，火焰在玻璃罩里安静地跳动着。</p>
+    <p>你翻开一本大岛留下的书——《沙丘》。不是弗兰克·赫伯特，是一个叫安部公房的日本作家写的。书中的人被困在一个沙坑里，不停地挖，沙子又不停地流回。</p>
+    <p>你读到一半，灯芯爆出一朵火花。一个念头忽然闯进你的意识：佐伯年轻时的恋人，那个二十岁就死去的男人——他的死因是什么？</p>
+    <p>你从未问过。大岛也从未说过。</p>`,
+    choices: [
+      { text: '继续读书。把疑问推到意识的边缘', next: 'morning_cabin', key: 'A' },
+      { text: '合上书。静静地听森林的声音', next: 'listen_forest', key: 'B' },
+    ]
+  },
+
+  'forest_edge': {
+    chapter: '第十章 · 森林边缘',
+    text: `<p>你在黄昏的森林边缘走了一小段。阳光透过层层叠叠的树叶，在地面上投下斑驳的光影。这里的寂静与城市的寂静不同——你感到的不是空旷，而是<em>充满</em>。某种无形的存在充盈在林间。</p>
+    <p>你在一块长满青苔的石头上坐下。一只褐色的小鸟落在不远处的树枝上，歪着头看你。</p>
+    <p>然后你听到了——从密林深处传来的一声微弱的、类似笛声的旋律。不是鸟鸣，不是风声。是某种乐器发出的声音。但音阶似乎不对，那些音符不属于你听过的任何一首曲子。</p>
+    <p class="crow-voice">那是入口在呼唤。别回应。现在还不行。</p>`,
+    choices: [
+      { text: '返回木屋。但那个旋律留在了你的耳中', next: 'cabin_night', key: 'A' },
+    ]
+  },
+
+  'listen_forest': {
+    chapter: '第十一章 · 森林的声音',
+    text: `<p>森林不是沉默的。它有自己的语言——树叶的摩擦、远处溪流的低语、夜鸟偶尔的啼鸣，以及某种更深层的、几乎处于听觉边缘的嗡鸣。</p>
+    <p>你闭上眼睛，让那种嗡鸣渗透进你的身体。当它抵达你脊椎底部时，你感到一阵奇异的战栗，类似于梦中的少女用手指划过你皮肤的触感。</p>
+    <p>森林在呼吸。而它的呼吸与你的呼吸正在慢慢同步。</p>`,
+    choices: [
+      { text: '第二天清晨，向森林更深处走去', next: 'morning_cabin', key: 'A' },
+    ]
+  },
+
+  'morning_cabin': {
+    chapter: '第十一章 · 清晨',
+    text: `<p>清晨的阳光把木屋镀上一层金色。你吃了简单的早餐——面包、罐头汤、速溶咖啡。然后你站在门廊上，看着森林。</p>
+    <p>它在那里等待。它已经等待了很久。它的耐心不是人类的耐心，而是地质时代的耐心。</p>
+    <p>你想起了梦中的少女——十五岁的佐伯。她说下次见面时会告诉你关于入口的事。</p>
+    <p>森林深处似乎有一条小径。几乎被灌木掩盖，但如果你仔细看——它确实存在。像是谁故意留下的。</p>`,
+    choices: [
+      { text: '沿着小径向森林深处走。寻找入口', next: 'enter_deep_forest', key: 'A' },
+      { text: '再等一等。在小屋里多待一天', next: 'wait_cabin', key: 'B' },
+    ]
+  },
+
+  'wait_cabin': {
+    chapter: '第十一章 · 等待',
+    text: `<p>你在小屋里多待了一天。读完了那本《沙丘》，听了电池收音机里播放的古典音乐节目。德彪西的《月光》从满是杂音的喇叭里流淌出来，像一条疲惫但依然美丽的河。</p>
+    <p>入夜后，你站在窗前。月光下，森林的边缘似乎在微微——移动？不对，不是移动。是呼吸。整个森林在以一种缓慢到不可思议的节奏起伏着。</p>`,
+    choices: [
+      { text: '第二天，必须走了。迈入森林深处。', next: 'enter_deep_forest', key: 'A' },
+    ]
+  },
+
+  // ═══════════════ DEEP FOREST ═══════════════
+  'enter_deep_forest': {
+    chapter: '第十二章 · 密林',
+    status: 'dream',
+    text: `<p>小径比你想象的更长。你走了一个小时、两个小时。树木越来越高，树冠越来越密，阳光变成了一种稀薄的绿色液体，从树叶的间隙中一滴滴地漏下来。</p>
+    <p>然后你忽然意识到——周围太安静了。没有鸟叫，没有虫鸣。连你自己的脚步都像被什么东西吸走了声音。</p>
+    <p>接着你看到了他们。</p>
+    <p>两个穿着旧日本军服的年轻士兵，站在小径中央。他们的军服干干净净，没有一丝褶皱。他们的眼睛——你立刻注意到——不是活人的眼睛，也不是死人的。是某种第三种状态。</p>
+    <p>「终于有人来了。」左边的士兵说。他的声音像隔着一层水。</p>
+    <p>「你是来找入口的。」右边的士兵补充道。这不是一个问题。</p>`,
+    choices: [
+      { text: '「是的。」——直接承认', next: 'meet_soldiers', key: 'A' },
+      { text: '「你们是谁？你们在这里多久了？」', next: 'ask_soldiers', key: 'B' },
+      { text: '转身就跑。', next: 'flee_soldiers', key: 'C' },
+    ]
+  },
+
+  'meet_soldiers': {
+    chapter: '第十二章 · 守门人',
+    status: 'dream',
+    text: `<p>两个士兵交换了一个眼神。某种古老的交流在他们的沉默中完成。</p>
+    <p>「入口就在我们身后。它一直都在。但只有准备好的人才能看见它。」左边的士兵说。</p>
+    <p>「你准备好了吗？」右边的士兵问。「一旦进入，你可能永远无法返回。或者——你返回了，但带回来的东西已经不一样了。」</p>
+    <p>「时间在里面是凝固的。像一个泡泡。」左边的士兵补充，「我们是这个泡泡的守门人。从昭和二十年一直守到现在。」</p>`,
+    choices: [
+      { text: '「带我去入口。」——下定决心', next: 'approach_entrance', key: 'A' },
+      { text: '「我需要再想一想。」', next: 'hesitate_entrance', key: 'B' },
+    ],
+    onEnter(state) { state.flags.metSoldiers = true; }
+  },
+
+  'ask_soldiers': {
+    chapter: '第十二章 · 守门人',
+    status: 'dream',
+    text: `<p>「我们？」左边的士兵露出了一个苦涩的微笑。「我们是逃兵。昭和二十年，我们逃离了部队。跑进了这座森林。然后……我们找到了入口。」</p>
+    <p>「那之后我们就再也没有出去过。」右边的士兵说，「不是不能——是不想。」</p>
+    <p>「外面的世界在杀戮。在这里，时间停止了。战争永远不会到达。」</p>`,
+    choices: [
+      { text: '「带我去入口。」', next: 'approach_entrance', key: 'A' },
+    ],
+    onEnter(state) { state.flags.metSoldiers = true; }
+  },
+
+  'flee_soldiers': {
+    chapter: '第十二章 · 逃逸',
+    text: `<p>你转身就跑。但森林已经不是刚才的森林了。小径消失了。树木在移动——缓慢地、但确实在移动——封住了你的来路。</p>
+    <p>「别跑。」士兵的声音从身后传来，但似乎又在你前方、在你左边、在你右边——无处不在。「入口已经看见你了。一旦被它看见，你就不能当作没见过它。」</p>
+    <p>你停下来，大口喘气。一只黑鸟——也许是乌鸦——从头顶飞过，翅膀拍动的声音在寂静中格外响亮。</p>
+    <p class="crow-voice">别逃了。面对它。这是你来到这里的理由。</p>`,
+    choices: [
+      { text: '转过身，面对那两个士兵', next: 'meet_soldiers', key: 'A' },
+    ]
+  },
+
+  'hesitate_entrance': {
+    chapter: '第十二章 · 犹豫',
+    text: `<p>你站在那条无形的边界线上。入口就在前方——你甚至能感觉到它散发出的那种奇异的引力，像一种微弱的磁场，拉拽着你骨骼深处某个被遗忘的部分。</p>
+    <p>你想起了大岛的话。想起了佐伯。想起了梦中的少女。想起了你父亲死在工作室地板上的样子——虽然你从未亲眼看到，但你在幻觉中已经看过一百次。</p>`,
+    choices: [
+      { text: '走进入口。', next: 'approach_entrance', key: 'A' },
+    ]
+  },
+
+  'approach_entrance': {
+    chapter: '第十三章 · 入口',
+    status: 'dream',
+    text: `<p>入口不是一扇门，不是一道光，不是任何可以用语言描述的东西。它更像是一种——<em>折叠</em>。空间的折叠。你跨过某个看不见的边界，然后一切都变了。</p>
+    <p>森林消失了。你站在一片盆地里，四面是平缓的山丘。天空的颜色不太对——蓝色中掺杂着某种不属于这个世界的色调，像是极光与日落的混合。</p>
+    <p>盆地的中央有一座小小的村落。房屋是用石头和木材搭建的，式样古老但完好无损。空气里弥漫着安静。绝对的安静。</p>
+    <p>然后你看到了她。</p>
+    <p>十五岁的佐伯——不是梦，不是幻影——站在一间小屋的门前。她穿着你在梦里见过的那条白裙子，赤着脚，长发在无风中微微飘动。</p>`,
+    choices: [
+      { text: '「你真的在这里。」——走向她', next: 'ghost_saeki_meeting', key: 'A' },
+    ]
+  },
+
+  'ghost_saeki_meeting': {
+    chapter: '第十三章 · 活灵',
+    status: 'dream',
+    text: `<p class="dream-text">「我一直都在。」少女——佐伯的活灵——微笑着说。「我告诉过你，时间在这里是黏稠的。我在这里度过了三十年的夏天。每一天都是同一个夏天。十五岁的夏天。」</p>
+    <p>她向你走来。这一次，梦没有碎裂。她的手指真的碰到了你的脸。温热的。真实的。介于肉体和影子之间的触感。</p>
+    <p class="dream-text">「你想知道入口是什么吗？入口是佐伯在二十岁时创造的东西。她用她的悲伤创造了一个门，把自己十五岁的那个夏天封存在了这里。那样的话——那个夏天就永远不会结束。那个恋人就不会死。」</p>
+    <p>她看着你的眼睛。她的瞳孔深处有某种古老的悲伤。</p>
+    <p class="dream-text">「但你不是那个恋人。你是那个恋人离开后留下的空洞所孕育出来的——另一个人。你是她的儿子。」</p>`,
+    choices: [
+      { text: '「我知道。」——这三个字从你嘴中滑出，几乎是叹息', next: 'shadow_merge_intro', key: 'A' },
+      { text: '「……什么？」——拒绝接受', next: 'shadow_merge_intro', key: 'B' },
+    ]
+  },
+
+  'shadow_merge_intro': {
+    chapter: '第十四章 · 影的交融',
+    status: 'dream',
+    text: `<p class="dream-text">她靠得更近了。你能闻到她身上的气味——不是栀子花，而是更古老的东西。是夏天本身的气味：草叶的汁液、晒热的石头、贝壳内部的光泽。</p>
+    <p class="dream-text">「在平常的世界里，母亲不能成为恋人。儿子不能成为死去的恋人。但这里不是平常的世界。这里是一切规则都失去效力的地方。」</p>
+    <p>她伸出手。你的手——仿佛是自主地——也伸了出去。你们的指尖碰在一起，然后是指节、掌心。她的影子——在地上的影子——与你的影子缓缓重叠。</p>
+    <p class="dream-text">影子融合是一种奇怪的感觉。不是身体的接触——而是比身体更深层的某种东西的交换。你感到她的记忆像温热的泉水一样流过你的血管：那个十五岁的夏天，海边的沙滩，一个弹吉他的男孩的笑容，一首只写了一半的歌。然后是失去。然后是冰封。</p>
+    <p>在这个过程中，你的衣服仿佛变成了一层无关紧要的薄纱。你和她之间所有的物理边界都变得模糊。不是消失——而是变得半透明。你能感觉到她的呼吸，感觉到她的心跳——或者说，那是你自己的心跳？分不清了。两个影子在地上变成了一个，纠缠的、颤动的、深黑的。像两只乌鸦在暮色中收拢了翅膀，彼此依偎。</p>
+    <p>有什么东西在你体内改变了。不是破坏，不是污染——而是像一道门被推开了。门后是你一直在寻找的、却不能承认自己在寻找的东西。</p>
+    <p class="dream-text">过了很久——也许是一分钟，也许是一百年——她退开了。她的脸上有一层薄薄的光。</p>
+    <p class="dream-text">「你带着我的一部分了。我也带着你的一部分。这是我们能做的——唯一的事。」</p>`,
+    choices: [
+      { text: '「……那预言。弑父、与母交合、与姐姐交合——它全部应验了。」', next: 'prophecy_fulfilled', key: 'A' },
+      { text: '「我可以留在这里。永远留在这里。」', next: 'stay_forever_choice', key: 'B' },
+    ],
+    onEnter(state) { state.flags.ghostSaeki = true; state.flags.shadowMerged = true; state.shadowDepth = 2; }
+  },
+
+  'prophecy_fulfilled': {
+    chapter: '第十五章 · 预言的完成',
+    status: 'dream',
+    text: `<p class="dream-text">少女——佐伯的活灵——摇了摇头。她的笑容里没有责备，只有一种穿透一切的温柔。</p>
+    <p class="dream-text">「预言不是惩罚。预言不是诅咒。预言只是一条河。你可以选择逆流而上，也可以随波逐流。但无论如何——河在那里。而你——」她用指尖点了点你的胸口，「——你已经游到了河口。大海就在前面。」</p>
+    <p>「预言的完成不是结束。是开始。」</p>`,
+    choices: [
+      { text: '「我应该回去吗？回到那个世界？」', next: 'return_question', key: 'A' },
+    ]
+  },
+
+  'stay_forever_choice': {
+    chapter: '第十五章 · 归来与否',
+    status: 'dream',
+    text: `<p class="dream-text">「你可以留下。」少女说，声音里有一种脆弱的希望，「像我一样，在这里永远活在十五岁的夏天里。没有痛苦，没有衰老，没有失去。但——」她停了一下，「你也不会再长大。不会再遇到任何人。不会知道你自己的故事翻到下一页会是什么。」</p>`,
+    choices: [
+      { text: '「我想知道下一页。」——决定回去', next: 'return_question', key: 'A' },
+      { text: '「让我留在这里。和你一起。」——选择留下', next: 'stay_forever', key: 'B' },
+    ]
+  },
+
+  'return_question': {
+    chapter: '第十五章 · 归途',
+    status: 'dream',
+    text: `<p class="dream-text">少女听了你的话，露出了一个也许是欣慰——也许是感伤——的微笑。</p>
+    <p class="dream-text">「那就回去吧。回到属于你的时间里。带着这里的记忆——或者不带着。选择权在你。」</p>
+    <p>两个士兵不知何时出现在了身后。他们沉默地让开通路。</p>
+    <p>「你还会再回来吗？」少女问。</p>
+    <p>你没有回答。因为你知道——回来与否，这个入口都会永远留在你体内。</p>`,
+    choices: [
+      { text: '跨出入口。回到森林。回到世界。', next: 'return_to_world', key: 'A' },
+    ]
+  },
+
+  'stay_forever': {
+    chapter: '终章 · 永恒的夏天',
+    status: 'dream',
+    text: `<p class="dream-text">你没有回去。</p>
+    <p>盆地接纳了你。十五岁的夏天像一层又一层透明的琥珀，把你包裹在其中。你不再长大，不再做梦，不再记得那个叫「卡夫卡」的名字是从哪里来的。</p>
+    <p>少女——现在不再叫你「卡夫卡」，而是叫你另一个名字，一个你从来没有告诉过任何人的名字——每天都和你在一起。你们在凝固的时间里散步，在不会凋谢的花丛中聊天，在不会变暗的暮色中并肩坐着。</p>
+    <p class="dream-text">那个世界——有警察、有战争、有死亡的世界——变得越来越遥远，越来越不真实。像你童年看过的一部黑白电影，情节已经模糊，只残留着灰烬般的质感。</p>
+    <p>偶尔，你会梦见一只乌鸦。它站在你的窗台上，用红色的眼睛看着你。</p>
+    <p class="crow-voice">你选择了安全。但安全是另一种死亡。</p>
+    <p>你醒来时，少女温热的呼吸在你耳畔。你看着她沉静的睡脸，心中涌起一种说不清是幸福还是悲哀的感情。</p>
+    <p>但你已经做出了选择。在入口被关闭之前。在两个世界之间。你选择了永远不结束的夏天。</p>
+    <p>很久很久以后——如果你还能说出「以后」这个词的话——你偶尔会隐约想起：另一个自己也许回到了那个世界，继续长大了。成为了世界上最顽强的十六岁少年、十七岁少年、二十岁的男人。经历了更多失去、更多获得。</p>
+    <p>但那个你已经不是你了。你是留在这里的这个。在永恒的、安静的、温柔的夏天里。</p>
+    <p class="dream-text">入口最终关闭了。再也没有人能找到它。</p>`,
+    choices: [],
+    ending: '永恒之夏',
+    endingDesc: '你选择了留在时间之外的盆地，与佐伯的活灵永远生活在十五岁的夏天。入口关闭了。安全，但停止了生长。',
+  },
+
+  'return_to_world': {
+    chapter: '第十六章 · 归来',
+    status: 'neutral',
+    text: `<p>你从森林里走出来时，太阳的位置和进去时几乎一模一样——但你知道时间已经过去了，也许是几天，也许更久。</p>
+    <p>木屋的门廊上，大岛坐在那里。他面前的烟灰缸里堆满了烟蒂。</p>
+    <p>「三天。」他说，「你在里面待了三天。」</p>
+    <p>「感觉像三十秒。也像三十年。」你说。</p>
+    <p>大岛没有追问。他只是递给你一杯凉了的咖啡。</p>
+    <p>「佐伯女士打电话来了。她要你回图书馆。她——想见你。」</p>`,
+    choices: [
+      { text: '「开车送我回去。」', next: 'return_library', key: 'A' },
+    ]
+  },
+
+  'return_library': {
+    chapter: '第十七章 · 最后的图书馆',
+    status: 'neutral',
+    text: `<p>你回到了甲村纪念图书馆。这里的空气和记忆中一样——旧书、木质地板蜡、栀子花。但感觉不一样了。你现在能闻到某种更底层的气味：时间的尘埃、纸页的纤维、以及——告别的气息。</p>
+    <p>佐伯在二楼的办公室里等你。她坐在窗前，逆光中，她的轮廓和那幅油画中的少女惊人地相似。你意识到——不是相似。是同一个人。跨越了三十五年时光的同一个人。</p>
+    <p>「你见到她了。」佐伯说。不是疑问。</p>
+    <p>「是的。」你说。</p>
+    <p>「她——还好吗？」</p>
+    <p>「她在夏天里。永远的十五岁。」</p>`,
+    choices: [
+      { text: '「佐伯女士——你是我的母亲吗？」——直接问', next: 'mother_question', key: 'A' },
+      { text: '保持沉默。让沉默来回答。', next: 'mother_silence', key: 'B' },
+    ]
+  },
+
+  'mother_question': {
+    chapter: '第十七章 · 母亲',
+    text: `<p>佐伯闭了一会儿眼睛。当她重新睁开时，那双眼睛里有一种你从未见过的表情——不是悲伤，不是悔恨。是解脱。</p>
+    <p>「是的。我是你在四岁时失去的母亲。」她说，声音平稳得像一潭深水。「我离开了你父亲。离开了你。不是不爱你——是不能留下来。有些容器一旦打破，就再也无法完好如初。」</p>
+    <p>「你父亲给我的是一个预言。我逃离他，却把你留给了他。」</p>
+    <p>你感到有什么东西在你的胸腔里碎裂了，但同时——也感到某种东西愈合了。</p>`,
+    choices: [
+      { text: '「我原谅你。或者说——我不需要原谅。我只是想听你亲口说出来。」', next: 'saeki_final', key: 'A' },
+      { text: '低头。哭。但不是因为悲伤。', next: 'saeki_final', key: 'B' },
+    ]
+  },
+
+  'mother_silence': {
+    chapter: '第十七章 · 沉默的回答',
+    text: `<p>佐伯在你的沉默中找到了答案。</p>
+    <p>「是的。」她轻声说，「我是你的母亲。」</p>
+    <p>不需要更多的话了。沉默替你们说完了剩下来的所有。</p>`,
+    choices: [
+      { text: '她伸出手。你握住了它。', next: 'saeki_final', key: 'A' },
+    ]
+  },
+
+  'saeki_final': {
+    chapter: '第十八章 · 佐伯的告别',
+    text: `<p>「我要走了。」佐伯说。</p>
+    <p>「去哪里？」</p>
+    <p>她没有回答，但你知道。在她的眼睛里，你能看到那个出口——和她十五岁的那个夏天连接在一起的出口。她要去关闭它，从她的那一侧。</p>
+    <p>她把三本厚厚的手稿放在桌上。「这是一个女人写给她从小就认识、后来永远失去了的恋人的信。写了三十五年。你帮我保管它们——或者烧掉它们。你自己决定。」</p>
+    <p>然后佐伯——你的母亲——站起来，走到门口。她回头看了你一眼。</p>
+    <p>那一眼里有一个母亲的全部慈爱，和一个女人全部的故事。</p>
+    <p>然后她走了。</p>`,
+    choices: [
+      { text: '烧掉手稿。让她的故事回到火焰中', next: 'burn_manuscript', key: 'A' },
+      { text: '保存手稿。有一天，也许你会读懂它们', next: 'keep_manuscript', key: 'B' },
+    ]
+  },
+
+  'burn_manuscript': {
+    chapter: '第十九章 · 火焰',
+    text: `<p>你在图书馆的庭院里点了一小堆火。夜色中，火焰舔舐着纸页。纸页卷曲、变黑、化为灰烬。</p>
+    <p>大岛站在你身边。他没有说话，只是递给你一杯温热的日本酒。</p>
+    <p>「她不会回来了。」大岛终于说。</p>
+    <p>「我知道。」你说。</p>
+    <p>「你接下来打算怎么办？」</p>`,
+    choices: [
+      { text: '「回东京。去警察局。告诉他们我知道的一切。」', next: 'ending_face', key: 'A' },
+      { text: '「留在这里。打理图书馆。等她永远不回来的回来。」', next: 'ending_stay_library', key: 'B' },
+      { text: '「我不知道。但我已经不是那个需要逃跑的人了。」', next: 'ending_open', key: 'C' },
+    ]
+  },
+
+  'keep_manuscript': {
+    chapter: '第十九章 · 手稿',
+    text: `<p>你把三本手稿放进你的背包里。它们很轻——却有一种奇怪的重量感，像三块压缩了时间的石头。</p>
+    <p>大岛靠在门框上，看着你把背包拉链拉好。</p>
+    <p>「不读一下？」大岛问。</p>
+    <p>「现在不。」你说，「等我准备好。」</p>
+    <p>「你什么时候准备好？」</p>
+    <p>你看着窗外。庭院里的榉树上，一只乌鸦张开翅膀，消失在暮色中。</p>`,
+    choices: [
+      { text: '「等我不再是十五岁的时候。」', next: 'ending_face', key: 'A' },
+      { text: '「也许永远都不会。但那也没关系。」', next: 'ending_stay_library', key: 'B' },
+    ]
+  },
+
+  // ═══════════════ ENDINGS ═══════════════
+  'ending_face': {
+    chapter: '终章 · 世界上最顽强的少年',
+    text: `<p>你坐上了从高松开往东京的列车。窗外，濑户内海在阳光下泛着细碎的光芒。</p>
+    <p>你想起了一切：你的离开、你的旅程、你的母亲、你的父亲、那个在梦里与你有过影之交融的少女、那两个守着入口的士兵、那个凝固了三十年的夏天。</p>
+    <p>你不再是那个逃离预言的孩子了。预言已经完成了。而你还活着。</p>
+    <p class="crow-voice">领教了世界是何等凶顽之后，你同时得知了世界也可以变得温存和美好。这不是一个选择。这是一个事实。它同时为真。</p>
+    <p>你闭上眼睛。列车在铁轨上发出有节奏的声响。像某种鼓点。像心跳。</p>
+    <p>你十五岁。你有一个新名字——自己取的名字。你的影子比以前更深，但那是因为你站在了更大的光里。</p>`,
+    choices: [],
+    ending: '归途',
+    endingDesc: '你回到了东京，面对现实，面对警察，面对未来的生活。卡夫卡不再是一个逃跑的名字，而是一个出发的名字。你成为了世界上最顽强的十五岁少年——然后，你会成为十六岁、十七岁，一直走下去。',
+  },
+
+  'ending_stay_library': {
+    chapter: '终章 · 图书馆的继承者',
+    text: `<p>你留在了高松。大岛继续管理图书馆，你成了他的助手。警察最终还是来问过话，但大岛用他惯常的优雅和滴水不漏的言辞解决了所有的问题。</p>
+    <p>你开始重读那些曾经只是匆匆翻过的书。夏目漱石、三岛由纪夫、柏拉图、海德格尔。每一本都像一面镜子，映照出你不同角度的影子。</p>
+    <p>佐伯的办公室你每天都打扫。她的笔还放在桌上。她的栀子花味道还残留在窗帘的纤维里。你不确定她是否真的死了——在某种层面上，她只是回到了那个永恒的夏天，和她十五岁的自己合为一体。</p>
+    <p>偶尔，在黄昏时分，你会感觉到她的存在。不是幽灵——是记忆本身。那三本手稿你最终打开读了。那不是信。是一部长篇小说。关于一个少年、一只乌鸦、一片海。</p>
+    <p>你合上书。窗外榉树的叶子正在变黄。秋天来了。</p>`,
+    choices: [],
+    ending: '守望者',
+    endingDesc: '你留在了甲村纪念图书馆，成为它的守护者。在书和记忆中，你找到了自己的节奏。你不再逃跑——你学会了停留。',
+  },
+
+  'ending_open': {
+    chapter: '终章 · 新干线',
+    text: `<p>你买了一张新干线的车票。不是去东京，也不是留在高松。车窗外的风景在流动——稻田、山脉、海岸线、隧道里的黑暗和突然的光明。</p>
+    <p>你不知道目的地的名字。也许你不知道的东西还有很多。但那不再令你恐慌。</p>
+    <p>你从口袋里摸出那张唱片封套——《海边的卡夫卡》。封面上那个年轻女子的侧影在穿过云层的阳光下变得温暖而模糊。</p>
+    <p>你把封套翻过来。背面有人用细铅笔写了一行字。你以前从未注意到。字迹纤细、优雅——是女人的笔迹。</p>
+    <p><em>「致每一个在时间里寻找出口的人。」</em></p>`,
+    choices: [],
+    ending: '旅人',
+    endingDesc: '你既没有回到过去，也没有停留在现在。你选择了继续前行，去向一个尚未命名的远方。那也许是最像你的选择。',
+  },
+
+  // ═══════════════ NAKATA INTERLUDE ═══════════════
+  // (Hidden bonus node for special flags)
+  'nakata_interlude': {
+    chapter: '间奏 · 中田的故事',
+    status: 'cat',
+    text: `<p>在另一个叙事里——一个与你平行的、但你永远不会直接遇见的叙事里——有一个叫中田的老人。</p>
+    <p>中田在战争中失去了记忆和读写能力，却获得了与猫说话的能力。他一生善良而简单，像一块被河水冲刷得光滑的石头。</p>
+    <p>就是他——不是你——在东京的工作室里，杀死了那个化身为「琼尼·沃克」的男人。你的父亲。或者说，你的父亲体内那个邪恶的东西。</p>
+    <p>中田不知道自己为什么这么做。他只是感到一股不可抗拒的力量推动着他的手。杀完之后，他失去了和猫说话的能力。然后他一路向西——跟着某种只有他能感觉到的引力——来到了高松。来到了甲村纪念图书馆。</p>
+    <p>他在那里遇到了佐伯。然后佐伯交给了他那三本手稿。然后中田在烧掉手稿之后——安详地死去了。</p>
+    <p>你在你自己的叙事里。他在他的叙事里。但你们之间有一根看不见的线。那根线叫——命运。或者说，叫——连接。</p>`,
+    choices: [
+      { text: '点头。然后回到你自己的故事里。', next: 'return_to_world', key: 'A' },
+    ],
+  },
+};
+
+
+// ── Render engine ──
+function renderNode(nodeId) {
+  const node = nodes[nodeId];
+  if (!node) { console.error('Missing node:', nodeId); return; }
+
+  // Run onEnter hook
+  if (node.onEnter) node.onEnter(state);
+
+  // Update history
+  state.history.push(nodeId);
+  state.currentNode = nodeId;
+
+  // Chapter tag
+  if (node.chapter) {
+    chapterEl.innerHTML = `<span class="chapter-tag">${node.chapter}</span>`;
+  } else {
+    chapterEl.innerHTML = '';
+  }
+
+  // Status bar
+  const statusType = node.status || 'neutral';
+  let statusHTML = '';
+  if (state.flags.metSaeki) statusHTML += `<span class="status-item"><span class="status-dot active"></span>佐伯</span>`;
+  if (state.flags.hadDream) statusHTML += `<span class="status-item"><span class="status-dot dream"></span>梦境</span>`;
+  if (state.flags.fatherDead) statusHTML += `<span class="status-item"><span class="status-dot" style="background:var(--danger)"></span>弑父</span>`;
+  if (state.flags.shadowMerged) statusHTML += `<span class="status-item"><span class="status-dot dream"></span>影融</span>`;
+  if (state.flags.metSoldiers) statusHTML += `<span class="status-item"><span class="status-dot" style="background:#666"></span>守门人</span>`;
+  statusEl.innerHTML = statusHTML;
+
+  // Narrative text
+  narrativeEl.innerHTML = node.text;
+
+  // Choices or ending
+  choicesEl.innerHTML = '';
+  if (node.choices && node.choices.length > 0) {
+    node.choices.forEach((choice, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.innerHTML = `<span class="choice-key">[${choice.key || i + 1}]</span> ${choice.text}`;
+      btn.addEventListener('click', () => {
+        narrativeEl.style.opacity = '0';
+        choicesEl.style.opacity = '0';
+        setTimeout(() => {
+          if (choice.onChoose) choice.onChoose(state);
+          renderNode(choice.next);
+          narrativeEl.style.opacity = '1';
+          choicesEl.style.opacity = '1';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 500);
+      });
+      choicesEl.appendChild(btn);
+    });
+
+    // Keyboard shortcuts
+    const handleKey = (e) => {
+      const key = e.key.toUpperCase();
+      const choice = node.choices.find(c => c.key === key);
+      if (choice) {
+        document.removeEventListener('keydown', handleKey);
+        narrativeEl.style.opacity = '0';
+        choicesEl.style.opacity = '0';
+        setTimeout(() => {
+          if (choice.onChoose) choice.onChoose(state);
+          renderNode(choice.next);
+          narrativeEl.style.opacity = '1';
+          choicesEl.style.opacity = '1';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 500);
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+  } else if (node.ending) {
+    // Show ending screen
+    const endingDiv = document.createElement('div');
+    endingDiv.className = 'ending-screen';
+    endingDiv.innerHTML = `
+      <h2>—— ${node.ending} ——</h2>
+      <div class="ending-text">${node.text}</div>
+      <div class="epitaph">${node.endingDesc || ''}</div>
+      <br>
+      <p style="font-size:0.72rem;color:var(--text-dim);margin-bottom:20px;">
+        达成结局：<span style="color:var(--accent);">${node.ending}</span>
+        &nbsp;·&nbsp; 历程节点：${state.history.length}
+        &nbsp;·&nbsp; 梦境次数：${state.dreamCount}
+      </p>
+      <button class="restart-btn" onclick="restartGame()">重新开始 · 另一条路</button>
+    `;
+    choicesEl.appendChild(endingDiv);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+function restartGame() {
+  // Reset state
+  state.currentNode = 'start';
+  state.history = [];
+  state.flags = {
+    metSakura: false,
+    metOshima: false,
+    metSaeki: false,
+    enteredLibrary: false,
+    hadDream: false,
+    shrineIncident: false,
+    fatherDead: false,
+    enteredForest: false,
+    metSoldiers: false,
+    ghostSaeki: false,
+    shadowMerged: false,
+    talkedToCat: false,
+    heardMusic: false,
+    choseViolence: false,
+    chosePeace: false,
+  };
+  state.inventory = [];
+  state.dreamCount = 0;
+  state.shadowDepth = 0;
+
+  narrativeEl.style.opacity = '1';
+  choicesEl.style.opacity = '1';
+  renderNode('start');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Ambient particle generator ──
+function createAmbientParticles() {
+  const ambient = document.getElementById('ambient');
+  const count = 18;
+  for (let i = 0; i < count; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'particle';
+    const size = Math.random() * 2.5 + 1;
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+    particle.style.left = Math.random() * 100 + '%';
+    particle.style.background =
+      Math.random() > 0.6 ? 'rgba(184,134,11,0.6)' :
+      Math.random() > 0.5 ? 'rgba(74,111,165,0.5)' :
+      'rgba(204,51,51,0.4)';
+    particle.style.animationDuration = (Math.random() * 18 + 10) + 's';
+    particle.style.animationDelay = (Math.random() * 15) + 's';
+    ambient.appendChild(particle);
+  }
+}
+
+// ── Init ──
+createAmbientParticles();
+renderNode('start');
+</script>
+</body>
+</html>
